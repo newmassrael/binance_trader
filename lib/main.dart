@@ -1,9 +1,67 @@
 import 'dart:async';
+import 'dart:io';
 
-import 'package:binance_spot/binance_spot.dart';
 import 'package:flutter/material.dart' hide Interval;
+import 'package:http/http.dart' as http;
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
+import 'package:convert/convert.dart';
+// import 'package:web_socket_channel/io.dart';
+// import 'package:web_socket_channel/status.dart' as status;
 
 void main() => runApp(const MyApp());
+
+void http_test() async {
+  String test_key =
+      "huqLJDtJwDAYoSDSEDzjyuBsT635YnlDpkg0LWqosjc6HZDfFubR0NtkYWNH2fqW";
+  String test_secret =
+      "P4HNtYnvm1tBjYvdCDN4ucRNfPIfPh6snBOJlqIbwIC3mErYcZqaFJgcZsJyw0O3";
+  String test_net = 'testnet.binance.vision';
+  String real_net = 'api.binance.com';
+
+  Map<String, String> header = {};
+  header[HttpHeaders.contentTypeHeader] = "application/x-www-form-urlencoded";
+  header["X-MBX-APIKEY"] = test_key;
+
+  Map<String, String> params = {};
+  params['timestamp'] = DateTime.now().millisecondsSinceEpoch.toString();
+
+  var tempUri = Uri.https('', '', params);
+
+  String queryParams = tempUri.toString().substring(7);
+  List<int> messageBytes = utf8.encode(queryParams);
+  List<int> key = utf8.encode(test_secret);
+  Hmac hmac = Hmac(sha256, key);
+  Digest digest = hmac.convert(messageBytes);
+  String signature = hex.encode(digest.bytes);
+  params['signature'] = signature;
+
+  print(params);
+
+  // final response = await http.get(Uri.https(real_net, "/sapi/v1/system/status"),
+  //     headers: header);
+
+  final response = await http.get(
+      Uri.https(real_net, "/sapi/v1/account/apiTradingStatus", params),
+      headers: header);
+
+  // final response = await http.get(
+  //     Uri.https(real_net, "/sapi/v1/capital/config/getall", params),
+  //     headers: header);
+
+  // final response =
+  //     await http.get(Uri.https(test_net, "/api/v1/time"), headers: header);
+
+  print(response.statusCode);
+
+  if (response.statusCode == 200) {
+    // 만약 서버로의 요청이 성공하면, JSON을 파싱합니다.
+
+    print(response.body);
+  } else {
+    print(response.body);
+  }
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -24,19 +82,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  BinanceSpot binanceSpot = BinanceSpot(
-    key: "<apiKey>",
-    secret: "<apiSecret>",
-  );
-  double lastClosePrice = 0;
-  String tradablePairs = "";
-  String lastEventData = "";
-  late StreamSubscription<dynamic> klineStreamSub;
-  late StreamSubscription<dynamic> userdataStreamSub;
   @override
   void initState() {
-    startKlineStream();
-    startUserdataStream();
+    http_test();
     super.initState();
   }
 
@@ -51,84 +99,15 @@ class _HomePageState extends State<HomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text("Current BTC price : $lastClosePrice"),
-            Text("Last userdataStream event : $lastEventData"),
-            TextButton(
-              onPressed: getTradablePairs,
-              child: const Text("GET PAIRS"),
-            ),
-            Expanded(
-              flex: 1,
-              child: SelectableText(
-                tradablePairs,
-                maxLines: 200,
-                minLines: 1,
-              ),
-            ),
+            Text("Test"),
           ],
         ),
       ),
     );
   }
 
-  void startKlineStream() {
-    var stream = binanceSpot.klineStream(
-      symbol: "BTCUSDT",
-      interval: Interval.INTERVAL_5m,
-    );
-    klineStreamSub = stream.listen(handleNewKline);
-  }
-
-  void handleNewKline(WsKlineEvent event) {
-    setState(() {
-      lastClosePrice = event.kline.close;
-    });
-  }
-
-  void startUserdataStream() async {
-    var response = await binanceSpot.createListenKey();
-    if (response.isRight) {
-      var stream = binanceSpot.userDataStream(listenKey: response.right);
-      userdataStreamSub = stream.listen(handleUserdataEvent);
-    } else {
-      lastEventData = response.left;
-    }
-  }
-
-  void handleUserdataEvent(dynamic event) {
-    if (event is WsAccountUpdate) {
-      lastEventData =
-          "Account update event : ${event.balances.length} balances updated";
-    } else if (event is WsBalanceUpdate) {
-      lastEventData = "Balance update event : ${event.asset} balance updated";
-    } else if (event is WsExecutionReport) {
-      lastEventData =
-          "Execution report event : status is ${event.orderStatus.toStr()}";
-    } else if (event is WsListOrderStatus) {
-      lastEventData =
-          "ListOrder update event : status is ${event.listOrderStatus}";
-    } else {
-      lastEventData = "Unknown event type : ${event.toString()}";
-    }
-  }
-
-  void getTradablePairs() async {
-    var response = await binanceSpot.exchangeInfo();
-    if (response.isLeft) {
-      tradablePairs = response.left;
-    } else {
-      var listSymbol = response.right.symbols.map((e) => e.symbol).toList();
-      tradablePairs = "";
-      for (var s in listSymbol) {
-        tradablePairs += "$s ";
-      }
-    }
-  }
-
   @override
   void dispose() {
-    klineStreamSub.cancel();
-    userdataStreamSub.cancel();
     super.dispose();
   }
 }
