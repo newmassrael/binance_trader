@@ -4,10 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart' hide Interval;
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
-import 'dart:convert';
 import 'package:convert/convert.dart';
-// import 'package:web_socket_channel/io.dart';
-// import 'package:web_socket_channel/status.dart' as status;
+import 'dart:convert';
 
 void main() => runApp(const MyApp());
 
@@ -16,14 +14,18 @@ void http_test() async {
       "huqLJDtJwDAYoSDSEDzjyuBsT635YnlDpkg0LWqosjc6HZDfFubR0NtkYWNH2fqW";
   String test_secret =
       "P4HNtYnvm1tBjYvdCDN4ucRNfPIfPh6snBOJlqIbwIC3mErYcZqaFJgcZsJyw0O3";
-  String test_net = 'testnet.binance.vision';
-  String real_net = 'api.binance.com';
+  String testnet = 'testnet.binance.vision';
 
   Map<String, String> header = {};
   header[HttpHeaders.contentTypeHeader] = "application/x-www-form-urlencoded";
   header["X-MBX-APIKEY"] = test_key;
 
   Map<String, String> params = {};
+  params['symbol'] = "BTCUSDT";
+  params['side'] = "BUY";
+  params['type'] = "MARKET";
+  params['quantity'] = "1";
+
   params['timestamp'] = DateTime.now().millisecondsSinceEpoch.toString();
 
   var tempUri = Uri.https('', '', params);
@@ -38,29 +40,11 @@ void http_test() async {
 
   print(params);
 
-  // final response = await http.get(Uri.https(real_net, "/sapi/v1/system/status"),
-  //     headers: header);
-
-  final response = await http.get(
-      Uri.https(real_net, "/sapi/v1/account/apiTradingStatus", params),
+  final response = await http.post(Uri.https(testnet, "/api/v3/order", params),
       headers: header);
 
-  // final response = await http.get(
-  //     Uri.https(real_net, "/sapi/v1/capital/config/getall", params),
-  //     headers: header);
-
-  // final response =
-  //     await http.get(Uri.https(test_net, "/api/v1/time"), headers: header);
-
   print(response.statusCode);
-
-  if (response.statusCode == 200) {
-    // 만약 서버로의 요청이 성공하면, JSON을 파싱합니다.
-
-    print(response.body);
-  } else {
-    print(response.body);
-  }
+  print(response.body);
 }
 
 class MyApp extends StatelessWidget {
